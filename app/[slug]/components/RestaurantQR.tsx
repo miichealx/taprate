@@ -17,19 +17,15 @@ export default function RestaurantQR({
   useEffect(() => {
     async function generateQR() {
       try {
-        const restaurantUrl =
-          `${window.location.origin}/${slug}`;
+        const url = window.location.origin + "/" + slug;
 
-        const dataUrl = await QRCode.toDataURL(
-          restaurantUrl,
-          {
-            width: 400,
-            margin: 2,
-            errorCorrectionLevel: "H",
-          }
-        );
+        const qrImage = await QRCode.toDataURL(url, {
+          width: 1000,
+          margin: 4,
+          errorCorrectionLevel: "H",
+        });
 
-        setQr(dataUrl);
+        setQr(qrImage);
       } catch (error) {
         console.error("QR ERROR:", error);
       }
@@ -37,6 +33,18 @@ export default function RestaurantQR({
 
     generateQR();
   }, [slug]);
+
+  function downloadQR() {
+    if (!qr) return;
+
+    const link = document.createElement("a");
+    link.href = qr;
+    link.download = slug + "-QR.png";
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 
   if (!qr) {
     return (
@@ -49,12 +57,11 @@ export default function RestaurantQR({
   }
 
   return (
-    <div className="flex flex-col items-center">
-
+    <div className="flex w-full flex-col items-center">
       <div className="rounded-3xl bg-white p-5 shadow-lg">
         <img
           src={qr}
-          alt={`QR Code - ${name}`}
+          alt={"QR Code - " + name}
           className="h-64 w-64"
         />
       </div>
@@ -63,6 +70,17 @@ export default function RestaurantQR({
         امسح الكود لفتح صفحة {name}
       </p>
 
+      <button
+        type="button"
+        onClick={downloadQR}
+        className="mt-5 w-full rounded-2xl bg-black px-6 py-4 text-base font-bold text-white shadow-lg hover:bg-gray-800"
+      >
+        تحميل QR Code
+      </button>
+
+      <p className="mt-3 text-xs text-gray-400">
+        سيتم حفظ الكود كصورة PNG
+      </p>
     </div>
   );
 }
