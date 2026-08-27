@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import RestaurantQR from "@/components/RestaurantQR";
 
 type Restaurant = {
   name: string;
@@ -27,7 +28,11 @@ export default function RestaurantPage() {
         .single();
 
       if (error) {
-        console.error("SUPABASE ERROR:", error);
+        console.error(
+          "SUPABASE ERROR:",
+          JSON.stringify(error, null, 2)
+        );
+
         setError(error.message);
         setLoading(false);
         return;
@@ -50,6 +55,7 @@ export default function RestaurantPage() {
       >
         <div className="text-center">
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-black" />
+
           <p className="mt-4 text-sm text-gray-500">
             جاري التحميل...
           </p>
@@ -81,7 +87,8 @@ export default function RestaurantPage() {
     );
   }
 
-  const firstLetter = restaurant.name.trim().charAt(0);
+  const firstLetter =
+    restaurant.name.trim().charAt(0);
 
   return (
     <main
@@ -89,13 +96,12 @@ export default function RestaurantPage() {
       className="min-h-screen bg-[#f7f7f7] px-5 py-8"
     >
       <div className="mx-auto flex min-h-[92vh] max-w-md items-center justify-center">
-
         <div className="w-full">
 
-          {/* Card */}
+          {/* Main Card */}
           <div className="overflow-hidden rounded-[32px] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
 
-            {/* Top */}
+            {/* Restaurant Information */}
             <div className="px-7 pb-8 pt-10 text-center">
 
               {/* Logo */}
@@ -111,7 +117,7 @@ export default function RestaurantPage() {
                 </div>
               )}
 
-              {/* Restaurant name */}
+              {/* Restaurant Name */}
               <h1 className="mt-7 text-3xl font-black tracking-tight text-gray-900">
                 {restaurant.name}
               </h1>
@@ -129,17 +135,19 @@ export default function RestaurantPage() {
                 className="mt-7 flex justify-center gap-1"
                 aria-label="5 stars"
               >
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <span
-                    key={index}
-                    className="text-3xl"
-                  >
-                    ⭐
-                  </span>
-                ))}
+                {Array.from({ length: 5 }).map(
+                  (_, index) => (
+                    <span
+                      key={index}
+                      className="text-3xl"
+                    >
+                      ⭐
+                    </span>
+                  )
+                )}
               </div>
 
-              {/* Google review */}
+              {/* Google Review Button */}
               <a
                 href={restaurant.google_review_url}
                 target="_blank"
@@ -158,10 +166,32 @@ export default function RestaurantPage() {
               <p className="mt-4 text-xs leading-5 text-gray-400">
                 اضغط على الزر لكتابة تقييمك على Google
               </p>
+
+              {/* QR Section */}
+              <div className="mt-10 border-t border-gray-100 pt-8">
+
+                <h2 className="text-lg font-bold text-gray-900">
+                  شارك تقييمك معنا
+                </h2>
+
+                <p className="mt-2 text-sm text-gray-500">
+                  امسح QR Code بالكاميرا لفتح صفحة المطعم
+                </p>
+
+                <div className="mt-6">
+                  <RestaurantQR
+                    slug={slug}
+                    name={restaurant.name}
+                  />
+                </div>
+
+              </div>
+
             </div>
 
             {/* Bottom */}
             <div className="border-t border-gray-100 bg-gray-50 px-7 py-5 text-center">
+
               <p className="text-xs text-gray-400">
                 Powered by
               </p>
@@ -169,6 +199,7 @@ export default function RestaurantPage() {
               <p className="mt-1 text-sm font-bold tracking-wide text-gray-800">
                 TapRate
               </p>
+
             </div>
 
           </div>
