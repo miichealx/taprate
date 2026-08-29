@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import RestaurantQR from "@/components/RestaurantQR";
 
@@ -15,39 +15,30 @@ type Restaurant = {
 
 export default function RestaurantPage() {
   const params = useParams();
-  const searchParams = useSearchParams();
-
   const slug = params.slug as string;
 
-  const [restaurant, setRestaurant] =
-    useState<Restaurant | null>(null);
-
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const analyticsSent = useRef(false);
+
   useEffect(() => {
     async function loadRestaurant() {
-      if (!slug) {
-        return;
-      }
+      if (!slug) return;
 
-      const { data, error: supabaseError } =
-        await supabase
-          .from("restaurants")
-          .select(
-            "id, name, slug, google_review_url, logo_url"
-          )
-          .eq("slug", slug)
-          .single();
+      const { data, error: supabaseError } = await supabase
+        .from("restaurants")
+        .select(
+          "id, name, slug, google_review_url, logo_url"
+        )
+        .eq("slug", slug)
+        .single();
 
       if (supabaseError) {
         console.error(
           "SUPABASE ERROR:",
-          JSON.stringify(
-            supabaseError,
-            null,
-            2
-          )
+          JSON.stringify(supabaseError, null, 2)
         );
 
         setError(supabaseError.message);
@@ -64,46 +55,64 @@ export default function RestaurantPage() {
 
   useEffect(() => {
     async function trackPageView() {
-      if (!restaurant?.id) {
-        return;
-      }
+      if (!restaurant || analyticsSent.current) return;
 
-      const sourceParam =
-        searchParams.get("source");
+      analyticsSent.current = true;
 
       let source = "direct";
 
-      if (sourceParam === "qr") {
-        source = "qr";
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const urlSource = params.get("source");
+
+        if (
+          urlSource === "qr" ||
+          urlSource === "nfc" ||
+          urlSource === "direct"
+        ) {
+          source = urlSource;
+        }
+      } catch (error) {
+        console.error("SOURCE ERROR:", error);
       }
 
-      if (sourceParam === "nfc") {
-        source = "nfc";
-      }
+      const { error } = await supabase
+        .from("analytics_events")
+        .insert({
+          restaurant_id: restaurant.id,
+          event_type: "page_view",
+          source,
+        });
 
-      const { error: analyticsError } =
-        await supabase
-          .from("analytics_events")
-          .insert({
-            restaurant_id: restaurant.id,
-            event_type: "page_view",
-            source,
-          });
-
-      if (analyticsError) {
+      if (error) {
         console.error(
-          "ANALYTICS ERROR:",
-          JSON.stringify(
-            analyticsError,
-            null,
-            2
-          )
+          "ANALYTICS PAGE VIEW ERROR:",
+          JSON.stringify(error, null, 2)
         );
       }
     }
 
     trackPageView();
-  }, [restaurant, searchParams]);
+  }, [restaurant]);
+
+  async function trackGoogleClick() {
+    if (!restaurant) return;
+
+    const { error } = await supabase
+      .from("analytics_events")
+      .insert({
+        restaurant_id: restaurant.id,
+        event_type: "google_review_click",
+        source: "google",
+      });
+
+    if (error) {
+      console.error(
+        "ANALYTICS GOOGLE ERROR:",
+        JSON.stringify(error, null, 2)
+      );
+    }
+  }
 
   if (loading) {
     return (
@@ -227,6 +236,7 @@ export default function RestaurantPage() {
                     href={restaurant.google_review_url}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={trackGoogleClick}
                     className="mt-5 flex w-full items-center justify-center gap-3 rounded-2xl bg-black px-5 py-4 text-base font-black text-white shadow-lg transition hover:bg-gray-800 active:scale-[0.98]"
                   >
                     <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-sm font-black text-black">
@@ -261,7 +271,6 @@ export default function RestaurantPage() {
                   />
                 </div>
               </div>
-
             </div>
 
             {/* Bottom */}

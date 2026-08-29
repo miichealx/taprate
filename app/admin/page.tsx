@@ -13,6 +13,14 @@ type Restaurant = {
   created_at: string;
 };
 
+type AnalyticsStats = {
+  total: number;
+  qr: number;
+  nfc: number;
+  google: number;
+  lastVisit: string | null;
+};
+
 export default function AdminPage() {
   const [session, setSession] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -25,6 +33,7 @@ export default function AdminPage() {
   const [logoUrl, setLogoUrl] = useState("");
 
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [analytics, setAnalytics] = useState<Record<number, AnalyticsStats>>({});
   const [search, setSearch] = useState("");
 
   const [message, setMessage] = useState("");
@@ -65,6 +74,7 @@ export default function AdminPage() {
 
     if (currentSession) {
       await loadRestaurants();
+      await loadAnalytics();
     }
   }
 
@@ -113,6 +123,78 @@ export default function AdminPage() {
     }
 
     setRestaurants((data || []) as Restaurant[]);
+  }
+
+  async function loadAnalytics() {
+    const { data, error } = await supabase
+      .from("analytics_events")
+      .select("restaurant_id, event_type, source, created_at")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("ANALYTICS LOAD ERROR:", error);
+      setMessage("خطأ في تحميل الإحصائيات: " + error.message);
+      return;
+    }
+
+    const stats: Record<number, AnalyticsStats> = {};
+
+    for (const restaurant of restaurants) {
+      stats[restaurant.id] = {
+        total: 0,
+        qr: 0,
+        nfc: 0,
+        google: 0,
+        lastVisit: null,
+      };
+    }
+
+    for (const event of data || []) {
+      const restaurantId = Number(event.restaurant_id);
+
+      if (!stats[restaurantId]) {
+        stats[restaurantId] = {
+          total: 0,
+          qr: 0,
+          nfc: 0,
+          google: 0,
+          lastVisit: null,
+        };
+      }
+
+      stats[restaurantId].total += 1;
+
+      const eventType = String(event.event_type || "").toLowerCase();
+      const source = String(event.source || "").toLowerCase();
+
+      if (
+        eventType.includes("google") ||
+        source.includes("google") ||
+        eventType.includes("review")
+      ) {
+        stats[restaurantId].google += 1;
+      }
+
+      if (
+        eventType.includes("qr") ||
+        source.includes("qr")
+      ) {
+        stats[restaurantId].qr += 1;
+      }
+
+      if (
+        eventType.includes("nfc") ||
+        source.includes("nfc")
+      ) {
+        stats[restaurantId].nfc += 1;
+      }
+
+      if (!stats[restaurantId].lastVisit && event.created_at) {
+        stats[restaurantId].lastVisit = event.created_at;
+      }
+    }
+
+    setAnalytics(stats);
   }
 
   async function addRestaurant(
@@ -176,6 +258,7 @@ export default function AdminPage() {
     );
 
     await loadRestaurants();
+    await loadAnalytics();
 
     setLoading(false);
   }
@@ -251,6 +334,7 @@ export default function AdminPage() {
 
     cancelEdit();
     await loadRestaurants();
+    await loadAnalytics();
 
     setLoading(false);
   }
@@ -289,6 +373,7 @@ export default function AdminPage() {
     setMessage("تم حذف " + restaurantName + " بنجاح");
 
     await loadRestaurants();
+    await loadAnalytics();
 
     setLoading(false);
   }
@@ -521,6 +606,40 @@ export default function AdminPage() {
 
         </div>
 
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-3xl bg-white p-6 shadow-lg">
+            <p className="text-sm text-gray-500">إجمالي الأحداث</p>
+            <p className="mt-2 text-4xl font-black text-gray-900">
+              {Object.values(analytics).reduce((sum, item) => sum + item.total, 0)}
+            </p>
+            <p className="mt-2 text-xs text-gray-400">كل الزيارات والتفاعلات المسجلة</p>
+          </div>
+
+          <div className="rounded-3xl bg-white p-6 shadow-lg">
+            <p className="text-sm text-gray-500">QR</p>
+            <p className="mt-2 text-4xl font-black text-gray-900">
+              {Object.values(analytics).reduce((sum, item) => sum + item.qr, 0)}
+            </p>
+            <p className="mt-2 text-xs text-gray-400">زيارات مصدر QR</p>
+          </div>
+
+          <div className="rounded-3xl bg-white p-6 shadow-lg">
+            <p className="text-sm text-gray-500">NFC</p>
+            <p className="mt-2 text-4xl font-black text-gray-900">
+              {Object.values(analytics).reduce((sum, item) => sum + item.nfc, 0)}
+            </p>
+            <p className="mt-2 text-xs text-gray-400">زيارات مصدر NFC</p>
+          </div>
+
+          <div className="rounded-3xl bg-black p-6 text-white shadow-lg">
+            <p className="text-sm text-gray-300">Google Review</p>
+            <p className="mt-2 text-4xl font-black">
+              {Object.values(analytics).reduce((sum, item) => sum + item.google, 0)}
+            </p>
+            <p className="mt-2 text-xs text-gray-400">ضغطات رابط التقييم</p>
+          </div>
+        </div>
+
         <div className="mt-6 rounded-3xl bg-white p-6 shadow-xl sm:p-8">
 
           {editingId !== null ? (
@@ -712,7 +831,10 @@ export default function AdminPage() {
 
               <button
                 type="button"
-                onClick={loadRestaurants}
+                onClick={async () => {
+                  await loadRestaurants();
+                  await loadAnalytics();
+                }}
                 className="rounded-xl border border-gray-300 px-4 py-3 text-sm font-bold hover:bg-gray-100"
               >
                 تحديث
@@ -774,6 +896,43 @@ export default function AdminPage() {
                       </div>
 
                     </div>
+
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      <div className="rounded-2xl bg-gray-50 p-4">
+                        <p className="text-xs font-bold text-gray-400">إجمالي الأحداث</p>
+                        <p className="mt-1 text-2xl font-black text-gray-900">
+                          {analytics[restaurant.id]?.total ?? 0}
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl bg-gray-50 p-4">
+                        <p className="text-xs font-bold text-gray-400">QR</p>
+                        <p className="mt-1 text-2xl font-black text-gray-900">
+                          {analytics[restaurant.id]?.qr ?? 0}
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl bg-gray-50 p-4">
+                        <p className="text-xs font-bold text-gray-400">NFC</p>
+                        <p className="mt-1 text-2xl font-black text-gray-900">
+                          {analytics[restaurant.id]?.nfc ?? 0}
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl bg-gray-50 p-4">
+                        <p className="text-xs font-bold text-gray-400">Google</p>
+                        <p className="mt-1 text-2xl font-black text-gray-900">
+                          {analytics[restaurant.id]?.google ?? 0}
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-gray-400">
+                      آخر نشاط:{" "}
+                      {analytics[restaurant.id]?.lastVisit
+                        ? new Date(analytics[restaurant.id].lastVisit as string).toLocaleString("ar-EG")
+                        : "لا توجد بيانات بعد"}
+                    </p>
 
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
 

@@ -17,7 +17,11 @@ export default function RestaurantQR({
   useEffect(() => {
     async function generateQR() {
       try {
-        const url = window.location.origin + "/" + slug;
+        const url =
+          window.location.origin +
+          "/" +
+          slug +
+          "?source=qr";
 
         const qrImage = await QRCode.toDataURL(url, {
           width: 1000,
