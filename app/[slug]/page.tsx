@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import RestaurantQR from "@/components/RestaurantQR";
 
@@ -15,6 +15,8 @@ type Restaurant = {
 
 export default function RestaurantPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
+
   const slug = params.slug as string;
 
   const [restaurant, setRestaurant] =
@@ -53,54 +55,55 @@ export default function RestaurantPage() {
         return;
       }
 
-      const restaurantData = data as Restaurant;
-
-      setRestaurant(restaurantData);
-
-      // تسجيل زيارة الصفحة
-      const { error: analyticsError } =
-        await supabase
-          .from("analytics_events")
-          .insert({
-            restaurant_id: restaurantData.id,
-            event_type: "page_view",
-            source: "direct",
-          });
-
-      if (analyticsError) {
-        console.error(
-          "ANALYTICS ERROR:",
-          analyticsError
-        );
-      }
-
+      setRestaurant(data as Restaurant);
       setLoading(false);
     }
 
     loadRestaurant();
   }, [slug]);
 
-  async function trackGoogleReview() {
-    if (!restaurant) {
-      return;
+  useEffect(() => {
+    async function trackPageView() {
+      if (!restaurant?.id) {
+        return;
+      }
+
+      const sourceParam =
+        searchParams.get("source");
+
+      let source = "direct";
+
+      if (sourceParam === "qr") {
+        source = "qr";
+      }
+
+      if (sourceParam === "nfc") {
+        source = "nfc";
+      }
+
+      const { error: analyticsError } =
+        await supabase
+          .from("analytics_events")
+          .insert({
+            restaurant_id: restaurant.id,
+            event_type: "page_view",
+            source,
+          });
+
+      if (analyticsError) {
+        console.error(
+          "ANALYTICS ERROR:",
+          JSON.stringify(
+            analyticsError,
+            null,
+            2
+          )
+        );
+      }
     }
 
-    const { error: analyticsError } =
-      await supabase
-        .from("analytics_events")
-        .insert({
-          restaurant_id: restaurant.id,
-          event_type: "google_review",
-          source: "page",
-        });
-
-    if (analyticsError) {
-      console.error(
-        "GOOGLE REVIEW ANALYTICS ERROR:",
-        analyticsError
-      );
-    }
-  }
+    trackPageView();
+  }, [restaurant, searchParams]);
 
   if (loading) {
     return (
@@ -224,7 +227,6 @@ export default function RestaurantPage() {
                     href={restaurant.google_review_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={trackGoogleReview}
                     className="mt-5 flex w-full items-center justify-center gap-3 rounded-2xl bg-black px-5 py-4 text-base font-black text-white shadow-lg transition hover:bg-gray-800 active:scale-[0.98]"
                   >
                     <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-sm font-black text-black">
@@ -259,6 +261,7 @@ export default function RestaurantPage() {
                   />
                 </div>
               </div>
+
             </div>
 
             {/* Bottom */}
