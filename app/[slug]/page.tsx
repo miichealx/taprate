@@ -25,8 +25,11 @@ export default function RestaurantPage() {
 
   useEffect(() => {
     async function loadRestaurant() {
-      if (!slug) return;
+      if (!slug) {
+        return;
+      }
 
+      // Get restaurant
       const { data, error: supabaseError } =
         await supabase
           .from("restaurants")
@@ -39,7 +42,11 @@ export default function RestaurantPage() {
       if (supabaseError) {
         console.error(
           "SUPABASE ERROR:",
-          JSON.stringify(supabaseError, null, 2)
+          JSON.stringify(
+            supabaseError,
+            null,
+            2
+          )
         );
 
         setError(supabaseError.message);
@@ -55,24 +62,65 @@ export default function RestaurantPage() {
 
       // Get traffic source from URL
       const searchParams =
-        new URLSearchParams(window.location.search);
+        new URLSearchParams(
+          window.location.search
+        );
 
       const source =
         searchParams.get("source") || "direct";
 
+      // Analytics debug
+      console.log(
+        "=== TAPRATE ANALYTICS DEBUG ==="
+      );
+
+      console.log(
+        "Restaurant:",
+        restaurantData.name
+      );
+
+      console.log(
+        "Restaurant ID:",
+        restaurantData.id
+      );
+
+      console.log(
+        "Slug:",
+        restaurantData.slug
+      );
+
+      console.log(
+        "Source:",
+        source
+      );
+
       // Record page visit
-      const { error: analyticsError } =
-        await supabase
-          .from("analytics_events")
-          .insert({
-            restaurant_id: restaurantData.id,
-            event_type: "page_view",
-            source: source,
-          });
+      const {
+        data: analyticsData,
+        error: analyticsError,
+      } = await supabase
+        .from("analytics_events")
+        .insert({
+          restaurant_id: restaurantData.id,
+          event_type: "page_view",
+          source: source,
+        })
+        .select(
+          "id, restaurant_id, event_type, source"
+        )
+        .single();
 
       if (analyticsError) {
         console.error(
-          "ANALYTICS ERROR:",
+          "=== ANALYTICS ERROR ==="
+        );
+
+        console.error(
+          analyticsError
+        );
+
+        console.error(
+          "Analytics error JSON:",
           JSON.stringify(
             analyticsError,
             null,
@@ -81,8 +129,11 @@ export default function RestaurantPage() {
         );
       } else {
         console.log(
-          "ANALYTICS RECORDED:",
-          source
+          "=== ANALYTICS SUCCESS ==="
+        );
+
+        console.log(
+          analyticsData
         );
       }
     }
@@ -185,16 +236,16 @@ export default function RestaurantPage() {
                 className="mt-6 flex justify-center gap-1"
                 aria-label="5 stars"
               >
-                {Array.from({ length: 5 }).map(
-                  (_, index) => (
-                    <span
-                      key={index}
-                      className="text-2xl"
-                    >
-                      ⭐
-                    </span>
-                  )
-                )}
+                {Array.from({
+                  length: 5,
+                }).map((_, index) => (
+                  <span
+                    key={index}
+                    className="text-2xl"
+                  >
+                    ⭐
+                  </span>
+                ))}
               </div>
 
               {/* Google Review */}
@@ -209,7 +260,9 @@ export default function RestaurantPage() {
 
                 {restaurant.google_review_url ? (
                   <a
-                    href={restaurant.google_review_url}
+                    href={
+                      restaurant.google_review_url
+                    }
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-5 flex w-full items-center justify-center gap-3 rounded-2xl bg-black px-5 py-4 text-base font-black text-white shadow-lg transition hover:bg-gray-800 active:scale-[0.98]"
