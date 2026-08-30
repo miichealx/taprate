@@ -77,35 +77,27 @@ export default function RestaurantPage() {
       const source =
         searchParams.get("source") || "direct";
 
-      // Show which restaurant is being tracked
+      // Show analytics status
       setAnalyticsStatus(
         `جاري تسجيل الزيارة للمطعم ${restaurantData.name} - ID: ${restaurantData.id}`
       );
 
       // Record page visit
-      const {
-        data: analyticsData,
-        error: analyticsError,
-      } = await supabase
-        .from("analytics_events")
-        .insert({
-          restaurant_id: restaurantData.id,
-          event_type: "page_view",
-          source: source,
-        })
-        .select(
-          "id, restaurant_id, event_type, source"
-        )
-        .single();
+      // IMPORTANT:
+      // Do not use .select() here because
+      // anonymous users may INSERT but cannot SELECT.
+      const { error: analyticsError } =
+        await supabase
+          .from("analytics_events")
+          .insert({
+            restaurant_id: restaurantData.id,
+            event_type: "page_view",
+            source: source,
+          });
 
       if (analyticsError) {
         console.error(
           "ANALYTICS ERROR:",
-          analyticsError
-        );
-
-        console.error(
-          "ANALYTICS ERROR JSON:",
           JSON.stringify(
             analyticsError,
             null,
@@ -119,7 +111,7 @@ export default function RestaurantPage() {
       } else {
         console.log(
           "ANALYTICS SUCCESS:",
-          analyticsData
+          source
         );
 
         setAnalyticsStatus(
@@ -226,6 +218,7 @@ export default function RestaurantPage() {
                 </p>
               </div>
 
+              {/* Thank You */}
               <p className="mt-4 text-base font-medium text-gray-500">
                 شكرًا لزيارتك ❤️
               </p>
