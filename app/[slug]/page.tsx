@@ -23,6 +23,9 @@ export default function RestaurantPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [analyticsStatus, setAnalyticsStatus] =
+    useState("جاري تسجيل الزيارة...");
+
   useEffect(() => {
     async function loadRestaurant() {
       if (!slug) {
@@ -54,11 +57,16 @@ export default function RestaurantPage() {
         return;
       }
 
+      if (!data) {
+        setError("Restaurant not found");
+        setLoading(false);
+        return;
+      }
+
       const restaurantData =
         data as Restaurant;
 
       setRestaurant(restaurantData);
-      setLoading(false);
 
       // Get traffic source from URL
       const searchParams =
@@ -69,29 +77,9 @@ export default function RestaurantPage() {
       const source =
         searchParams.get("source") || "direct";
 
-      // Analytics debug
-      console.log(
-        "=== TAPRATE ANALYTICS DEBUG ==="
-      );
-
-      console.log(
-        "Restaurant:",
-        restaurantData.name
-      );
-
-      console.log(
-        "Restaurant ID:",
-        restaurantData.id
-      );
-
-      console.log(
-        "Slug:",
-        restaurantData.slug
-      );
-
-      console.log(
-        "Source:",
-        source
+      // Show which restaurant is being tracked
+      setAnalyticsStatus(
+        `جاري تسجيل الزيارة للمطعم ${restaurantData.name} - ID: ${restaurantData.id}`
       );
 
       // Record page visit
@@ -112,30 +100,34 @@ export default function RestaurantPage() {
 
       if (analyticsError) {
         console.error(
-          "=== ANALYTICS ERROR ==="
-        );
-
-        console.error(
+          "ANALYTICS ERROR:",
           analyticsError
         );
 
         console.error(
-          "Analytics error JSON:",
+          "ANALYTICS ERROR JSON:",
           JSON.stringify(
             analyticsError,
             null,
             2
           )
         );
+
+        setAnalyticsStatus(
+          `فشل تسجيل الزيارة: ${analyticsError.message}`
+        );
       } else {
         console.log(
-          "=== ANALYTICS SUCCESS ==="
-        );
-
-        console.log(
+          "ANALYTICS SUCCESS:",
           analyticsData
         );
+
+        setAnalyticsStatus(
+          `تم تسجيل الزيارة بنجاح - Restaurant ID: ${restaurantData.id} - Source: ${source}`
+        );
       }
+
+      setLoading(false);
     }
 
     loadRestaurant();
@@ -175,6 +167,10 @@ export default function RestaurantPage() {
 
           <p className="mt-3 text-sm leading-6 text-gray-500">
             تأكد من صحة الرابط وحاول مرة أخرى.
+          </p>
+
+          <p className="mt-4 text-xs text-red-400">
+            {error}
           </p>
         </div>
       </main>
@@ -223,7 +219,14 @@ export default function RestaurantPage() {
                 {restaurant.name}
               </h1>
 
-              <p className="mt-3 text-base font-medium text-gray-500">
+              {/* Analytics Status */}
+              <div className="mt-4 rounded-2xl bg-gray-50 px-4 py-3">
+                <p className="text-xs leading-5 text-gray-500">
+                  {analyticsStatus}
+                </p>
+              </div>
+
+              <p className="mt-4 text-base font-medium text-gray-500">
                 شكرًا لزيارتك ❤️
               </p>
 
