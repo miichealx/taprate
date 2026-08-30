@@ -26,17 +26,28 @@ export default function RestaurantPage() {
   const [analyticsStatus, setAnalyticsStatus] =
     useState("جاري تسجيل الزيارة...");
 
+  const [debugMessage, setDebugMessage] =
+    useState("DEBUG: الصفحة بدأت");
+
   useEffect(() => {
     console.log(
       "🔥 TAPRATE ANALYTICS CODE IS RUNNING",
       slug
     );
 
+    setDebugMessage("DEBUG: useEffect اشتغل");
+
     async function loadRestaurant() {
       if (!slug) {
         console.error(
           "❌ TAPRATE ERROR: slug is empty"
         );
+
+        setDebugMessage(
+          "DEBUG ERROR: slug فاضي"
+        );
+
+        setLoading(false);
         return;
       }
 
@@ -45,19 +56,29 @@ export default function RestaurantPage() {
         slug
       );
 
-      // Get restaurant
-      const { data, error: supabaseError } =
-        await supabase
-          .from("restaurants")
-          .select(
-            "id, name, slug, google_review_url, logo_url"
-          )
-          .eq("slug", slug)
-          .single();
+      setDebugMessage(
+        `DEBUG: جاري تحميل المطعم: ${slug}`
+      );
+
+      const {
+        data,
+        error: supabaseError,
+      } = await supabase
+        .from("restaurants")
+        .select(
+          "id, name, slug, google_review_url, logo_url"
+        )
+        .eq("slug", slug)
+        .single();
 
       if (supabaseError) {
         console.error(
           "❌ SUPABASE RESTAURANT ERROR:",
+          supabaseError
+        );
+
+        console.error(
+          "❌ SUPABASE RESTAURANT ERROR JSON:",
           JSON.stringify(
             supabaseError,
             null,
@@ -65,7 +86,14 @@ export default function RestaurantPage() {
           )
         );
 
-        setError(supabaseError.message);
+        setError(
+          supabaseError.message
+        );
+
+        setDebugMessage(
+          `DEBUG ERROR: ${supabaseError.message}`
+        );
+
         setLoading(false);
         return;
       }
@@ -76,7 +104,14 @@ export default function RestaurantPage() {
           slug
         );
 
-        setError("Restaurant not found");
+        setError(
+          "Restaurant not found"
+        );
+
+        setDebugMessage(
+          "DEBUG ERROR: المطعم غير موجود"
+        );
+
         setLoading(false);
         return;
       }
@@ -89,16 +124,22 @@ export default function RestaurantPage() {
         restaurantData
       );
 
-      setRestaurant(restaurantData);
+      setRestaurant(
+        restaurantData
+      );
 
-      // Get traffic source from URL
+      setDebugMessage(
+        `DEBUG: المطعم ${restaurantData.name} - ID ${restaurantData.id}`
+      );
+
       const searchParams =
         new URLSearchParams(
           window.location.search
         );
 
       const source =
-        searchParams.get("source") || "direct";
+        searchParams.get("source") ||
+        "direct";
 
       console.log(
         "📊 ANALYTICS SOURCE:",
@@ -114,19 +155,24 @@ export default function RestaurantPage() {
         `جاري تسجيل الزيارة للمطعم ${restaurantData.name} - ID: ${restaurantData.id}`
       );
 
-      // Record page visit
+      setDebugMessage(
+        `DEBUG: جاري تسجيل Analytics - ID ${restaurantData.id} - Source ${source}`
+      );
+
       console.log(
         "🚀 SENDING ANALYTICS EVENT..."
       );
 
-      const { error: analyticsError } =
-        await supabase
-          .from("analytics_events")
-          .insert({
-            restaurant_id: restaurantData.id,
-            event_type: "page_view",
-            source: source,
-          });
+      const {
+        error: analyticsError,
+      } = await supabase
+        .from("analytics_events")
+        .insert({
+          restaurant_id:
+            restaurantData.id,
+          event_type: "page_view",
+          source: source,
+        });
 
       if (analyticsError) {
         console.error(
@@ -146,6 +192,10 @@ export default function RestaurantPage() {
         setAnalyticsStatus(
           `فشل تسجيل الزيارة: ${analyticsError.message}`
         );
+
+        setDebugMessage(
+          `DEBUG ERROR: Analytics - ${analyticsError.message}`
+        );
       } else {
         console.log(
           "✅ ANALYTICS INSERT SUCCESS"
@@ -163,6 +213,10 @@ export default function RestaurantPage() {
 
         setAnalyticsStatus(
           `تم تسجيل الزيارة بنجاح - Restaurant ID: ${restaurantData.id} - Source: ${source}`
+        );
+
+        setDebugMessage(
+          `DEBUG SUCCESS: تم تسجيل Analytics - ID ${restaurantData.id} - Source ${source}`
         );
       }
 
@@ -184,6 +238,12 @@ export default function RestaurantPage() {
           <p className="mt-4 text-sm text-gray-500">
             جاري التحميل...
           </p>
+
+          <div className="mt-5 rounded-2xl bg-yellow-100 px-4 py-3">
+            <p className="text-xs font-bold text-black">
+              {debugMessage}
+            </p>
+          </div>
         </div>
       </main>
     );
@@ -211,13 +271,21 @@ export default function RestaurantPage() {
           <p className="mt-4 text-xs text-red-400">
             {error}
           </p>
+
+          <div className="mt-5 rounded-2xl bg-yellow-100 px-4 py-3">
+            <p className="text-xs font-bold text-black">
+              {debugMessage}
+            </p>
+          </div>
         </div>
       </main>
     );
   }
 
   const firstLetter =
-    restaurant.name.trim().charAt(0) || "T";
+    restaurant.name
+      .trim()
+      .charAt(0) || "T";
 
   return (
     <main
@@ -262,6 +330,13 @@ export default function RestaurantPage() {
               <div className="mt-4 rounded-2xl bg-gray-50 px-4 py-3">
                 <p className="text-xs leading-5 text-gray-500">
                   {analyticsStatus}
+                </p>
+              </div>
+
+              {/* Debug Status */}
+              <div className="mt-3 rounded-2xl bg-yellow-100 px-4 py-3">
+                <p className="text-xs font-bold leading-5 text-black">
+                  {debugMessage}
                 </p>
               </div>
 
