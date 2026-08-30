@@ -27,10 +27,23 @@ export default function RestaurantPage() {
     useState("جاري تسجيل الزيارة...");
 
   useEffect(() => {
+    console.log(
+      "🔥 TAPRATE ANALYTICS CODE IS RUNNING",
+      slug
+    );
+
     async function loadRestaurant() {
       if (!slug) {
+        console.error(
+          "❌ TAPRATE ERROR: slug is empty"
+        );
         return;
       }
+
+      console.log(
+        "🔎 Loading restaurant:",
+        slug
+      );
 
       // Get restaurant
       const { data, error: supabaseError } =
@@ -44,7 +57,7 @@ export default function RestaurantPage() {
 
       if (supabaseError) {
         console.error(
-          "SUPABASE ERROR:",
+          "❌ SUPABASE RESTAURANT ERROR:",
           JSON.stringify(
             supabaseError,
             null,
@@ -58,6 +71,11 @@ export default function RestaurantPage() {
       }
 
       if (!data) {
+        console.error(
+          "❌ RESTAURANT NOT FOUND:",
+          slug
+        );
+
         setError("Restaurant not found");
         setLoading(false);
         return;
@@ -65,6 +83,11 @@ export default function RestaurantPage() {
 
       const restaurantData =
         data as Restaurant;
+
+      console.log(
+        "✅ RESTAURANT LOADED:",
+        restaurantData
+      );
 
       setRestaurant(restaurantData);
 
@@ -77,15 +100,25 @@ export default function RestaurantPage() {
       const source =
         searchParams.get("source") || "direct";
 
-      // Show analytics status
+      console.log(
+        "📊 ANALYTICS SOURCE:",
+        source
+      );
+
+      console.log(
+        "📊 ANALYTICS RESTAURANT ID:",
+        restaurantData.id
+      );
+
       setAnalyticsStatus(
         `جاري تسجيل الزيارة للمطعم ${restaurantData.name} - ID: ${restaurantData.id}`
       );
 
       // Record page visit
-      // IMPORTANT:
-      // Do not use .select() here because
-      // anonymous users may INSERT but cannot SELECT.
+      console.log(
+        "🚀 SENDING ANALYTICS EVENT..."
+      );
+
       const { error: analyticsError } =
         await supabase
           .from("analytics_events")
@@ -97,7 +130,12 @@ export default function RestaurantPage() {
 
       if (analyticsError) {
         console.error(
-          "ANALYTICS ERROR:",
+          "❌ ANALYTICS ERROR:",
+          analyticsError
+        );
+
+        console.error(
+          "❌ ANALYTICS ERROR JSON:",
           JSON.stringify(
             analyticsError,
             null,
@@ -110,7 +148,16 @@ export default function RestaurantPage() {
         );
       } else {
         console.log(
-          "ANALYTICS SUCCESS:",
+          "✅ ANALYTICS INSERT SUCCESS"
+        );
+
+        console.log(
+          "✅ Restaurant ID:",
+          restaurantData.id
+        );
+
+        console.log(
+          "✅ Source:",
           source
         );
 
